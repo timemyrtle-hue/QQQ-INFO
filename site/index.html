@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>나스닥 체크</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* Layout: one narrow column. Verdict first (30-day drawdown + severity scale), then the 30-day line with the gap to the peak shaded, then the daily log. Korean market colors: up = red, down = blue. */
+:root {
+  --bg: #F2F4F7;
+  --surface: #FFFFFF;
+  --ink: #0F1720;
+  --mute: #5A6672;
+  --line: #D9DFE5;
+  --up: #D23B2C;
+  --down: #2D66D8;
+  --font-body: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C1117;
+    --surface: #131A22;
+    --ink: #E6ECF1;
+    --mute: #8A97A3;
+    --line: #25303B;
+    --up: #FF6F5E;
+    --down: #6397FF;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C1117;
+  --surface: #131A22;
+  --ink: #E6ECF1;
+  --mute: #8A97A3;
+  --line: #25303B;
+  --up: #FF6F5E;
+  --down: #6397FF;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+.top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.top h1 { font-size: 20px; line-height: 1.2; margin: 0; font-weight: 700; }
+.top .src { color: var(--mute); font-size: 12.5px; margin: 4px 0 0; }
+.refresh {
+  font: inherit; font-size: 13px; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; cursor: pointer; white-space: nowrap;
+}
+.refresh:hover { border-color: var(--mute); }
+.refresh:focus-visible, .retry:focus-visible { outline: 2px solid var(--down); outline-offset: 2px; }
+.refresh[disabled] { opacity: .55; cursor: default; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.eyebrow { font-size: 12.5px; color: var(--mute); letter-spacing: .02em; margin: 0; }
+
+.hero { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.dd { font-family: var(--font-num); font-weight: 500; font-size: clamp(46px, 13vw, 72px); line-height: 1; letter-spacing: -.02em; margin: 6px 0 0; font-variant-numeric: tabular-nums; }
+.dd.is-down { color: var(--down); }
+.dd.is-flat { color: var(--ink); }
+.verdict { margin: 8px 0 0; font-size: 15px; font-weight: 500; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; border-top: 1px solid var(--line); padding-top: 14px; }
+.stat dt { font-size: 12px; color: var(--mute); margin: 0; }
+.stat dd { margin: 2px 0 0; font-family: var(--font-num); font-size: 16px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.stat small { display: block; font-family: var(--font-body); font-size: 12px; color: var(--mute); }
+.up { color: var(--up); }
+.down { color: var(--down); }
+
+.scale { position: relative; padding-bottom: 34px; }
+.track {
+  height: 8px; border-radius: 4px;
+  background: linear-gradient(to right,
+    color-mix(in srgb, var(--down) 6%, var(--line)) 0 33.33%,
+    color-mix(in srgb, var(--down) 26%, var(--line)) 33.33% 66.67%,
+    color-mix(in srgb, var(--down) 55%, var(--line)) 66.67% 100%);
+}
+.pin { position: absolute; top: -5px; width: 3px; height: 18px; margin-left: -1.5px; background: var(--ink); border-radius: 2px; left: 0; }
+.tick { position: absolute; top: 14px; font-size: 11.5px; color: var(--mute); transform: translateX(-50%); white-space: nowrap; font-family: var(--font-num); }
+.tick.first { transform: none; }
+.tick.last { transform: translateX(-100%); }
+.tick span { font-family: var(--font-body); }
+
+.plan-head, .prow { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1.05fr); gap: 8px; align-items: center; }
+.plan-head { font-size: 12px; color: var(--mute); padding: 0 10px 6px; margin: 0 -10px; border-bottom: 1px solid var(--line); }
+.plan-head span:not(:first-child), .prow > div:not(:first-child) { text-align: right; }
+.prow { padding: 10px; margin: 0 -10px; border-bottom: 1px solid var(--line); border-radius: 6px; }
+.prow:last-child { border-bottom: 0; }
+.prow.is-cur { background: color-mix(in srgb, var(--down) 12%, transparent); border-bottom-color: transparent; }
+.prow b { font-weight: 700; font-size: 14.5px; }
+.prow small { display: block; font-size: 11.5px; color: var(--mute); }
+.prow .px { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 14.5px; }
+.prow .px small { font-family: var(--font-body); }
+.prow .st .num { font-size: 14.5px; }
+.chip { display: inline-block; font-size: 12px; font-weight: 700; color: var(--surface); background: var(--down); border-radius: 4px; padding: 1px 9px; }
+.muted { color: var(--mute); font-size: 13px; }
+.legend .l-lvl { border-top: 1.5px dotted var(--down); }
+.chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.chart-head h2, .log-head h2 { font-size: 15px; margin: 0; font-weight: 700; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--mute); flex-wrap: wrap; }
+.legend i { display: inline-block; width: 14px; height: 0; vertical-align: middle; margin-right: 5px; }
+.legend .l-line { border-top: 2px solid var(--ink); }
+.legend .l-peak { border-top: 1.5px dashed var(--mute); }
+.legend .l-gap { height: 9px; width: 14px; background: color-mix(in srgb, var(--down) 22%, transparent); border-radius: 2px; }
+.chart-box { width: 100%; }
+.chart-box svg { display: block; width: 100%; height: auto; }
+.chart-box .grid { stroke: var(--line); stroke-width: 1; }
+.chart-box .axis { fill: var(--mute); font-family: var(--font-num); font-size: 11px; }
+.chart-box .lbl { fill: var(--ink); font-family: var(--font-num); font-size: 11.5px; }
+.chart-box .lbl-m { fill: var(--mute); font-family: var(--font-body); font-size: 11px; }
+
+.log-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; gap: 12px; }
+.log-head span { font-size: 12px; color: var(--mute); }
+.table-scroll { overflow: auto; max-height: 460px; }
+.table-scroll th { position: sticky; top: 0; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 340px; }
+th { text-align: right; font-weight: 500; font-size: 12px; color: var(--mute); padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { text-align: right; padding: 8px; border-bottom: 1px solid var(--line); font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; padding-left: 0; }
+th:last-child, td:last-child { padding-right: 0; }
+td:first-child { font-family: var(--font-body); }
+tr:last-child td { border-bottom: 0; }
+.tag { font-family: var(--font-body); font-size: 11px; color: var(--mute); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-left: 6px; }
+
+.note { font-size: 12.5px; color: var(--mute); margin: 0; }
+.msg { display: none; }
+.msg.show { display: block; }
+.msg p { margin: 0; }
+.msg .retry { margin-top: 10px; font: inherit; font-size: 13px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+
+.skeleton .dd { color: var(--line); }
+.skeleton .stat dd, .skeleton .chart-box, .skeleton td { color: var(--line); }
+.skeleton .chart-box { height: 240px; border-radius: 6px; background: color-mix(in srgb, var(--line) 45%, transparent); }
+</style>
+
+</head>
+<body>
+<div class="wrap" id="app">
+  <header class="top">
+    <div>
+      <h1>나스닥 체크</h1>
+      <p class="src" id="src">QQQ · 나스닥-100 추종 ETF · 미국 정규장 종가</p>
+    </div>
+  </header>
+
+  <section class="panel msg" id="msg" role="status" aria-live="polite"></section>
+
+  <section class="panel hero skeleton" id="hero" aria-label="역대 최고점 대비">
+    <div>
+      <p class="eyebrow">역대 최고점 대비</p>
+      <p class="dd is-flat" id="dd">−.−−%</p>
+      <p class="verdict" id="verdict">시세를 불러오는 중입니다</p>
+    </div>
+    <div class="scale" aria-hidden="true">
+      <div class="track"></div>
+      <div class="pin" id="pin" style="left:0%"></div>
+      <span class="tick first" style="left:0%">0%</span>
+      <span class="tick" style="left:33.33%">−10% <span>매수 시작</span></span>
+      <span class="tick" style="left:66.67%">−20% <span>본격</span></span>
+      <span class="tick last" style="left:100%">−30% <span>풀매수</span></span>
+    </div>
+    <dl class="stats">
+      <div class="stat"><dt>현재 종가</dt><dd id="s-close">—<small id="s-close-d">&nbsp;</small></dd></div>
+      <div class="stat"><dt>역대 최고 종가</dt><dd id="s-peak">—<small id="s-peak-d">&nbsp;</small></dd></div>
+      <div class="stat"><dt>전일 대비</dt><dd id="s-chg">—<small id="s-chg-d">&nbsp;</small></dd></div>
+    </dl>
+  </section>
+
+  <section class="panel" id="planPanel" aria-label="매수 단계">
+    <div class="log-head"><h2>매수 단계</h2><span>역대 최고점 · 종가 기준</span></div>
+    <div class="plan" id="plan"></div>
+  </section>
+
+  <section class="panel skeleton" id="chartPanel">
+    <div class="chart-head">
+      <h2>90거래일 흐름</h2>
+      <div class="legend">
+        <span><i class="l-line"></i>종가</span>
+        <span><i class="l-peak"></i>역대 최고점</span>
+        <span><i class="l-gap"></i>최고점과의 차이</span>
+        <span id="lg-lvl" hidden><i class="l-lvl"></i>매수 단계 기준</span>
+      </div>
+    </div>
+    <div class="chart-box" id="chart"></div>
+  </section>
+
+  <section class="panel" id="logPanel" hidden>
+    <div class="log-head"><h2>일별 기록</h2><span id="log-sub"></span></div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>날짜</th><th>종가</th><th>전일 대비</th><th>고점 대비</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="note" id="note">고점 대비는 QQQ 상장(1999년) 이후 역대 최고 종가를 기준으로 계산합니다. 최근 약 5개월은 일별 종가로, 그 이전은 주간 종가로 찾기 때문에 오래된 고점은 며칠 차이가 날 수 있고 이때는 날짜 앞에 ≈를 붙입니다. QQQ는 나스닥-100 지수를 추종하는 ETF라서 나스닥 종합지수와 하락률이 조금 다를 수 있습니다. 시세는 미국 정규장 마감 후 저장된 값이며, 마지막 갱신 시각은 맨 위에 표시됩니다. 매수 단계는 사용자가 정한 기준(−10%, −20%, −30%)을 그대로 보여주는 것이며 투자 권유가 아닙니다.</p>
+</div>
+
+<script>
+(function () {
+  var SYMBOL = "QQQ";
+  var WINDOW_ROWS = 90; /* 차트·기록표에 보여줄 최근 거래일 수 */
+  var DAY = 86400000;
+  var WEEK = ["일", "월", "화", "수", "목", "금", "토"];
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function fmtPrice(v) { return v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function fmtPct(v, signed) {
+    var s = Math.abs(v * 100).toFixed(2) + "%";
+    if (v < -0.00005) return "−" + s;
+    if (v > 0.00005) return (signed ? "+" : "") + s;
+    return "0.00%";
+  }
+  function fmtDate(t) {
+    var d = new Date(t);
+    return (d.getUTCMonth() + 1) + "/" + d.getUTCDate();
+  }
+  function fmtDateW(t) { return fmtDate(t) + " (" + WEEK[new Date(t).getUTCDay()] + ")"; }
+  function cls(v) { return v > 0.00005 ? "up" : (v < -0.00005 ? "down" : ""); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  /* 고점 = 역대 최고 종가. 일별 시세 이전 구간은 주간 종가에서 찾는다(날짜가 주 단위라 근사값). */
+  function analyze(rows, weekly) {
+    var firstT = rows[0].t, priorMax = -Infinity, priorT = 0;
+    (weekly || []).forEach(function (w) {
+      if (w.t < firstT && w.c > priorMax) { priorMax = w.c; priorT = w.t; }
+    });
+    var peak = priorMax, peakT = priorT, peakIdx = -1;
+    var out = rows.map(function (r, i) {
+      if (r.c >= peak) { peak = r.c; peakT = r.t; peakIdx = i; }
+      return { d: r.d, t: r.t, c: r.c, peak: peak, peakT: peakT, peakIdx: peakIdx, isPeak: peakIdx === i,
+        peakApprox: peakIdx < 0, dd: r.c / peak - 1, chg: i > 0 ? r.c / rows[i - 1].c - 1 : 0 };
+    });
+    var last = out[out.length - 1];
+    var win = out.slice(-WINDOW_ROWS);
+    return { all: out, win: win, last: last, hasWeekly: priorMax > -Infinity };
+  }
+
+  /* ---------- render ---------- */
+  var STAGES = [
+    { name: "대기", rule: "−10% 미만 하락", th: 0 },
+    { name: "매수 시작", rule: "−10% ~ −19.9%", th: 0.10 },
+    { name: "본격 매수", rule: "−20% ~ −29.9%", th: 0.20 },
+    { name: "풀매수", rule: "−30% 이하", th: 0.30 }
+  ];
+  function stageOf(dd) {
+    if (dd <= -0.30) return 3;
+    if (dd <= -0.20) return 2;
+    if (dd <= -0.10) return 1;
+    return 0;
+  }
+  function verdictFor(l) {
+    var i = stageOf(l.dd), next = STAGES[i + 1];
+    if (!next) return "풀매수 단계입니다 (−30% 이하)";
+    var need = l.peak * (1 - next.th) / l.c - 1;
+    return STAGES[i].name + (i === 0 ? "" : " 단계") + " · " + next.name + "(−" + Math.round(next.th * 100) + "%)까지 " + fmtPct(need, false) + " 더";
+  }
+
+  function renderPlan(l) {
+    var cur = l ? stageOf(l.dd) : -1;
+    var html = '<div class="plan-head"><span>단계</span><span>기준 종가</span><span>상태</span></div>';
+    html += STAGES.map(function (s, i) {
+      var px = "—", st = "";
+      if (l) {
+        if (i === 0) px = fmtPrice(l.peak * (1 - STAGES[1].th)) + "<small>초과</small>";
+        else px = fmtPrice(l.peak * (1 - s.th)) + "<small>이하</small>";
+        if (i === cur) st = '<span class="chip">현재</span>';
+        else if (i < cur) st = '<span class="muted">' + (i === 0 ? "지남" : "도달") + "</span>";
+        else {
+          var need = l.peak * (1 - s.th) / l.c - 1;
+          st = '<span class="num down">' + fmtPct(need, false) + "</span><small>더 하락 시</small>";
+        }
+      }
+      return '<div class="prow' + (i === cur ? " is-cur" : "") + '"><div><b>' + s.name + "</b><small>" + s.rule +
+        '</small></div><div class="px">' + px + '</div><div class="st">' + st + "</div></div>";
+    }).join("");
+    $("plan").innerHTML = html;
+  }
+
+  function renderHero(a, all) {
+    var l = a.last;
+    $("hero").classList.remove("skeleton");
+    var dd = $("dd");
+    dd.textContent = fmtPct(l.dd, false);
+    dd.className = "dd " + (l.dd < -0.00005 ? "is-down" : "is-flat");
+    $("verdict").textContent = verdictFor(l);
+    $("pin").style.left = Math.min(Math.abs(l.dd), 0.30) / 0.30 * 100 + "%";
+
+    $("s-close").innerHTML = fmtPrice(l.c) + '<small>' + fmtDateW(l.t) + '</small>';
+    $("s-peak").innerHTML = fmtPrice(l.peak) + '<small>' + (l.peakApprox ? "≈ " + fmtDate(l.peakT) + " 주" : fmtDateW(l.peakT)) + '</small>';
+    var chgCls = cls(l.chg);
+    $("s-chg").innerHTML = '<span class="' + chgCls + '">' + fmtPct(l.chg, true) + '</span><small>' + (l.chg >= 0 ? "+" : "−") + fmtPrice(Math.abs(l.c - all[all.length - 2].c)) + '</small>';
+  }
+
+  function niceTicks(min, max, n) {
+    var step = (max - min) / n;
+    var mag = Math.pow(10, Math.floor(Math.log10(step)));
+    var norm = step / mag;
+    var nice = norm >= 5 ? 5 : norm >= 2 ? 2 : 1;
+    step = nice * mag;
+    var start = Math.ceil(min / step) * step, ticks = [];
+    for (var v = start; v <= max + 1e-9; v += step) ticks.push(v);
+    return ticks;
+  }
+
+  function renderChart(a) {
+    var rows = a.win;
+    var W = 640, H = 270, pl = 10, pr = 74, pt = 30, pb = 28;
+    var t0 = rows[0].t, t1 = rows[rows.length - 1].t;
+    var peak = a.last.peak, mn = Infinity;
+    rows.forEach(function (r) { if (r.c < mn) mn = r.c; });
+    var levels = [];
+    [[0.10, "−10% 매수 시작"], [0.20, "−20% 본격 매수"], [0.30, "−30% 풀매수"]].forEach(function (x) {
+      if (mn <= peak * (1 - x[0] + 0.03)) levels.push({ v: peak * (1 - x[0]), label: x[1] });
+    });
+    var lowest = levels.length ? Math.min(mn, levels[levels.length - 1].v) : mn;
+    var span = peak - lowest; if (span <= 0) span = peak * 0.01;
+    var lo = lowest - span * 0.12, hi = peak + span * 0.04;
+    $("lg-lvl").hidden = !levels.length;
+    var X = function (t) { return pl + (t1 === t0 ? 0 : (t - t0) / (t1 - t0)) * (W - pl - pr); };
+    var Y = function (v) { return pt + (hi - v) / (hi - lo) * (H - pt - pb); };
+
+    var g = "";
+    niceTicks(lo, hi, 4).forEach(function (v) {
+      var y = Y(v).toFixed(1);
+      g += '<line class="grid" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y + '" y2="' + y + '"/>';
+      g += '<text class="axis" x="' + (W - pr + 8) + '" y="' + (Number(y) + 4) + '">' + Math.round(v) + '</text>';
+    });
+
+    var pts = rows.map(function (r) { return X(r.t).toFixed(1) + "," + Y(r.c).toFixed(1); });
+    var peakY = Y(peak).toFixed(1);
+    var gap = rows.map(function (r) { return X(r.t).toFixed(1) + "," + Y(r.c).toFixed(1); })
+      .concat([X(t1).toFixed(1) + "," + peakY, X(t0).toFixed(1) + "," + peakY]).join(" ");
+
+    var peakRow = rows.filter(function (r) { return r.isPeak; })[0] || null;
+    var last = rows[rows.length - 1];
+    var px = peakRow ? X(peakRow.t) : pl + 4, lx = X(last.t), ly = Y(last.c);
+    var pAnchor = !peakRow ? "start" : (px < 60 ? "start" : (px > W - pr - 60 ? "end" : "middle"));
+    var peakWhen = a.last.peakApprox ? "≈ " + fmtDate(a.last.peakT) + " 주" : fmtDate(a.last.peakT);
+
+    var mid = rows[Math.floor((rows.length - 1) / 2)];
+    var s = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="최근 90거래일 종가 추이와 역대 최고점">';
+    s += g;
+    s += '<polygon points="' + gap + '" fill="var(--down)" fill-opacity="0.16"/>';
+    s += '<line x1="' + pl + '" x2="' + (W - pr) + '" y1="' + peakY + '" y2="' + peakY + '" stroke="var(--mute)" stroke-width="1.5" stroke-dasharray="5 4"/>';
+    levels.forEach(function (lv) {
+      var yy = Y(lv.v).toFixed(1);
+      s += '<line x1="' + pl + '" x2="' + (W - pr) + '" y1="' + yy + '" y2="' + yy + '" stroke="var(--down)" stroke-width="1.5" stroke-dasharray="2 4" stroke-linecap="round"/>';
+      s += '<text x="' + (pl + 4) + '" y="' + (Number(yy) - 6) + '" fill="var(--down)" style="font-family:var(--font-body);font-size:11px">' + lv.label + " · " + fmtPrice(lv.v) + "</text>";
+    });
+    s += '<polyline points="' + pts.join(" ") + '" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    if (peakRow) s += '<circle cx="' + px.toFixed(1) + '" cy="' + peakY + '" r="4" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/>';
+    s += '<text class="lbl-m" x="' + px.toFixed(1) + '" y="' + (Number(peakY) - 22) + '" text-anchor="' + pAnchor + '">역대 최고 · ' + peakWhen + '</text>';
+    s += '<text class="lbl" x="' + px.toFixed(1) + '" y="' + (Number(peakY) - 9) + '" text-anchor="' + pAnchor + '">' + fmtPrice(peak) + '</text>';
+    s += '<circle cx="' + lx.toFixed(1) + '" cy="' + ly.toFixed(1) + '" r="4.5" fill="var(--down)" stroke="var(--surface)" stroke-width="2"/>';
+    s += '<text class="lbl-m" x="' + (lx + 10).toFixed(1) + '" y="' + (ly - 4).toFixed(1) + '">현재</text>';
+    s += '<text class="lbl" x="' + (lx + 10).toFixed(1) + '" y="' + (ly + 10).toFixed(1) + '">' + fmtPrice(last.c) + '</text>';
+    s += '<text class="axis" x="' + pl + '" y="' + (H - 8) + '" text-anchor="start">' + fmtDate(rows[0].t) + '</text>';
+    var prevX = pl + 40;
+    rows.forEach(function (r, i) {
+      if (i === 0) return;
+      if (new Date(r.t).getUTCMonth() === new Date(rows[i - 1].t).getUTCMonth()) return;
+      var xx = X(r.t);
+      if (xx - prevX < 46 || lx - xx < 46) return;
+      prevX = xx;
+      s += '<line class="grid" x1="' + xx.toFixed(1) + '" x2="' + xx.toFixed(1) + '" y1="' + pt + '" y2="' + (H - pb) + '"/>';
+      s += '<text class="axis" x="' + xx.toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' + (new Date(r.t).getUTCMonth() + 1) + '월</text>';
+    });
+    s += '<text class="axis" x="' + lx.toFixed(1) + '" y="' + (H - 8) + '" text-anchor="end">' + fmtDate(last.t) + '</text>';
+    s += "</svg>";
+
+    $("chartPanel").classList.remove("skeleton");
+    $("chart").innerHTML = s;
+  }
+
+  function renderLog(a) {
+    var rows = a.win.slice().reverse();
+    var html = rows.map(function (r) {
+      var tag = r.isPeak ? '<span class="tag">신고점</span>' : "";
+      return "<tr><td>" + fmtDateW(r.t) + tag + "</td><td>" + fmtPrice(r.c) + '</td><td class="' + cls(r.chg) + '">' + fmtPct(r.chg, true) +
+        '</td><td class="' + (r.dd < -0.00005 ? "down" : "") + '">' + fmtPct(r.dd, false) + "</td></tr>";
+    }).join("");
+    $("rows").innerHTML = html;
+    $("log-sub").textContent = fmtDate(a.win[0].t) + " – " + fmtDate(a.last.t) + " · " + rows.length + "거래일";
+    $("logPanel").hidden = false;
+  }
+
+  /* ---------- states ---------- */
+  function showMsg(html) { var m = $("msg"); m.innerHTML = html; m.classList.add("show"); }
+  function hideMsg() { $("msg").classList.remove("show"); }
+
+  function rowsFromDoc(d) {
+    var map = (d && d.closes) || {};
+    var rows = Object.keys(map).map(function (k) {
+      return { d: k, t: Date.parse(k + "T00:00:00Z"), c: Number(map[k]) };
+    }).filter(function (r) { return isFinite(r.t) && isFinite(r.c); });
+    rows.sort(function (a, b) { return a.t - b.t; });
+    return rows;
+  }
+
+  function show(d) {
+    var rows = rowsFromDoc(d);
+    if (rows.length < 2) {
+      $("verdict").textContent = "저장된 시세가 아직 부족합니다";
+      return;
+    }
+    var prior = null;
+    if (d.prior && isFinite(Number(d.prior.c)) && isFinite(Date.parse(d.prior.date + "T00:00:00Z"))) {
+      prior = [{ t: Date.parse(d.prior.date + "T00:00:00Z"), c: Number(d.prior.c) }];
+    }
+    var a = analyze(rows, prior);
+    renderHero(a, rows);
+    renderPlan(a.last);
+    renderChart(a);
+    renderLog(a);
+
+    var when = d.updatedAt ? new Date(d.updatedAt) : null;
+    var ok = when && isFinite(when.getTime());
+    var text = SYMBOL + " · 나스닥-100 추종 ETF · " + fmtDate(a.last.t) + " 미국 종가";
+    if (ok) {
+      text += " · 갱신 " + (when.getMonth() + 1) + "/" + when.getDate() + " " +
+        when.toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" });
+    }
+    $("src").textContent = text;
+
+    var msgs = [];
+    if (!a.hasWeekly) msgs.push("역대 최고점을 찾는 과거 데이터가 없어, 저장된 기간 안에서의 최고점을 기준으로 표시합니다.");
+    if (ok && Date.now() - when.getTime() > 4 * DAY) {
+      msgs.push("마지막 갱신이 " + Math.floor((Date.now() - when.getTime()) / DAY) + "일 전입니다. 그 이후 시세는 반영되지 않았을 수 있습니다.");
+    }
+    if (msgs.length) showMsg(msgs.map(function (m) { return "<p>" + m + "</p>"; }).join(""));
+    else hideMsg();
+  }
+
+  function fail(text, detail) {
+    $("verdict").textContent = text;
+    showMsg("<p>" + (detail || text) + "</p>");
+  }
+
+  renderPlan(null);
+  fetch("data.json", { cache: "no-store" })
+    .then(function (r) {
+      if (!r.ok) throw new Error("http " + r.status);
+      return r.json();
+    })
+    .then(function (d) { show(d); })
+    .catch(function () {
+      fail("시세를 불러오지 못했습니다", "시세 파일(data.json)을 불러오지 못했습니다. 파일을 직접 열었다면 웹 주소로 열어 주세요. 잠시 후 다시 시도해도 되지 않으면 저장소에 data.json이 있는지 확인해 주세요.");
+    });
+})();
+</script>
+</body>
+</html>
