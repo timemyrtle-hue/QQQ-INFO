@@ -138,6 +138,18 @@ td:first-child { font-family: var(--font-body); }
 tr:last-child td { border-bottom: 0; }
 .tag { font-family: var(--font-body); font-size: 11px; color: var(--mute); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-left: 6px; }
 
+.fund { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-bottom: 12px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+.fund label { font-size: 13px; color: var(--mute); }
+.fund .in { display: flex; align-items: center; gap: 6px; }
+.fund input { width: 110px; font: inherit; font-family: var(--font-num); font-size: 16px; text-align: right; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.fund input:focus-visible { outline: 2px solid var(--down); outline-offset: 1px; }
+.fund .unit { font-size: 13px; color: var(--mute); }
+.amt { display: block; font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 13.5px; margin-top: 2px; }
+.amt i { font-style: normal; font-family: var(--font-body); font-size: 11.5px; color: var(--mute); margin-left: 4px; }
+.prow.res { opacity: .9; }
+.cum { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; padding-top: 12px; margin-top: 4px; border-top: 1px solid var(--line); font-size: 13.5px; }
+.cum b { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 17px; }
+.cum small { display: block; font-size: 12px; color: var(--mute); }
 .note { font-size: 12.5px; color: var(--mute); margin: 0; }
 .msg { display: none; }
 .msg.show { display: block; }
@@ -171,9 +183,9 @@ tr:last-child td { border-bottom: 0; }
       <div class="track"></div>
       <div class="pin" id="pin" style="left:0%"></div>
       <span class="tick first" style="left:0%">0%</span>
-      <span class="tick" style="left:33.33%">−10% <span>매수 시작</span></span>
-      <span class="tick" style="left:66.67%">−20% <span>본격</span></span>
-      <span class="tick last" style="left:100%">−30% <span>풀매수</span></span>
+      <span class="tick" style="left:33.33%">−10% <span>1차</span></span>
+      <span class="tick" style="left:66.67%">−20% <span>2차</span></span>
+      <span class="tick last" style="left:100%">−30% <span>3차</span></span>
     </div>
     <dl class="stats">
       <div class="stat"><dt>현재 종가</dt><dd id="s-close">—<small id="s-close-d">&nbsp;</small></dd></div>
@@ -183,8 +195,13 @@ tr:last-child td { border-bottom: 0; }
   </section>
 
   <section class="panel" id="planPanel" aria-label="매수 단계">
-    <div class="log-head"><h2>매수 단계</h2><span>역대 최고점 · 종가 기준</span></div>
+    <div class="log-head"><h2>분할 매수 계획</h2><span>역대 최고점 · 종가 기준</span></div>
+    <div class="fund">
+      <label for="fundIn">총 투자 대기 자금</label>
+      <div class="in"><input id="fundIn" type="number" inputmode="numeric" min="0" step="10" value="1000" aria-label="총 투자 대기 자금(만 원)"><span class="unit">만 원</span></div>
+    </div>
     <div class="plan" id="plan"></div>
+    <div class="cum" id="cum"></div>
   </section>
 
   <section class="panel skeleton" id="chartPanel">
@@ -210,7 +227,7 @@ tr:last-child td { border-bottom: 0; }
     </div>
   </section>
 
-  <p class="note" id="note">고점 대비는 QQQ 상장(1999년) 이후 역대 최고 종가를 기준으로 계산합니다. 최근 약 5개월은 일별 종가로, 그 이전은 주간 종가로 찾기 때문에 오래된 고점은 며칠 차이가 날 수 있고 이때는 날짜 앞에 ≈를 붙입니다. QQQ는 나스닥-100 지수를 추종하는 ETF라서 나스닥 종합지수와 하락률이 조금 다를 수 있습니다. 시세는 미국 정규장 마감 후 저장된 값이며, 마지막 갱신 시각은 맨 위에 표시됩니다. 매수 단계는 사용자가 정한 기준(−10%, −20%, −30%)을 그대로 보여주는 것이며 투자 권유가 아닙니다.</p>
+  <p class="note" id="note">고점 대비는 QQQ 상장(1999년) 이후 역대 최고 종가를 기준으로 계산합니다. 최근 약 5개월은 일별 종가로, 그 이전은 주간 종가로 찾기 때문에 오래된 고점은 며칠 차이가 날 수 있고 이때는 날짜 앞에 ≈를 붙입니다. QQQ는 나스닥-100 지수를 추종하는 ETF라서 나스닥 종합지수와 하락률이 조금 다를 수 있습니다. 시세는 미국 정규장 마감 후 저장된 값이며, 마지막 갱신 시각은 맨 위에 표시됩니다. 매수 단계와 금액은 사용자가 정한 분할 매수 계획(−10%에 10%, −20%에 30%, −30%에 40%, 예비 현금 20%)을 입력한 총액에 맞춰 계산해 보여주는 것이며 투자 권유가 아닙니다. 입력한 금액은 이 기기에만 저장됩니다.</p>
 </div>
 
 <script>
@@ -256,11 +273,27 @@ tr:last-child td { border-bottom: 0; }
 
   /* ---------- render ---------- */
   var STAGES = [
-    { name: "대기", rule: "−10% 미만 하락", th: 0 },
-    { name: "매수 시작", rule: "−10% ~ −19.9%", th: 0.10 },
-    { name: "본격 매수", rule: "−20% ~ −29.9%", th: 0.20 },
-    { name: "풀매수", rule: "−30% 이하", th: 0.30 }
+    { name: "대기", rule: "−10% 미만 하락", th: 0, w: 0 },
+    { name: "1차 매수", rule: "−10% · 조정장 진입", th: 0.10, w: 0.10 },
+    { name: "2차 매수", rule: "−20% · 약세장 진입", th: 0.20, w: 0.30 },
+    { name: "3차 매수", rule: "−30% · 적극적 매수", th: 0.30, w: 0.40 }
   ];
+  var RESERVE_W = 0.20; /* −40% 이상 추가 하락·예외 상황 대비 예비 현금 */
+  var FUND_KEY = "nasdaq-check-fund";
+  var lastL = null;
+  function getFund() {
+    var v = parseFloat($("fundIn").value);
+    return isFinite(v) && v > 0 ? v : 0;
+  }
+  function fmtWon(man) {
+    if (!man) return "0원";
+    var r = Math.round(man * 10) / 10;
+    if (r >= 10000) {
+      var eok = Math.floor(r / 10000), rest = Math.round((r - eok * 10000) * 10) / 10;
+      return eok + "억" + (rest ? " " + rest.toLocaleString("ko-KR") + "만" : "") + " 원";
+    }
+    return r.toLocaleString("ko-KR") + "만 원";
+  }
   function stageOf(dd) {
     if (dd <= -0.30) return 3;
     if (dd <= -0.20) return 2;
@@ -269,13 +302,15 @@ tr:last-child td { border-bottom: 0; }
   }
   function verdictFor(l) {
     var i = stageOf(l.dd), next = STAGES[i + 1];
-    if (!next) return "풀매수 단계입니다 (−30% 이하)";
+    if (!next) return "3차 매수 단계입니다 (−30% 이하)";
     var need = l.peak * (1 - next.th) / l.c - 1;
     return STAGES[i].name + (i === 0 ? "" : " 단계") + " · " + next.name + "(−" + Math.round(next.th * 100) + "%)까지 " + fmtPct(need, false) + " 더";
   }
 
   function renderPlan(l) {
+    lastL = l;
     var cur = l ? stageOf(l.dd) : -1;
+    var fund = getFund();
     var html = '<div class="plan-head"><span>단계</span><span>기준 종가</span><span>상태</span></div>';
     html += STAGES.map(function (s, i) {
       var px = "—", st = "";
@@ -289,10 +324,21 @@ tr:last-child td { border-bottom: 0; }
           st = '<span class="num down">' + fmtPct(need, false) + "</span><small>더 하락 시</small>";
         }
       }
+      var amt = s.w ? '<span class="amt">' + fmtWon(fund * s.w) + "<i>" + Math.round(s.w * 100) + "%</i></span>" : "";
       return '<div class="prow' + (i === cur ? " is-cur" : "") + '"><div><b>' + s.name + "</b><small>" + s.rule +
-        '</small></div><div class="px">' + px + '</div><div class="st">' + st + "</div></div>";
+        "</small>" + amt + '</div><div class="px">' + px + '</div><div class="st">' + st + "</div></div>";
     }).join("");
+    var resPx = l ? fmtPrice(l.peak * 0.60) + "<small>이하</small>" : "—";
+    html += '<div class="prow res"><div><b>예비 현금</b><small>−40% 이상 추가 하락·예외 상황</small><span class="amt">' +
+      fmtWon(fund * RESERVE_W) + "<i>" + Math.round(RESERVE_W * 100) + '%</i></span></div><div class="px">' + resPx +
+      '</div><div class="st"><span class="muted">남겨둠</span></div></div>';
     $("plan").innerHTML = html;
+    var cw = 0;
+    for (var k = 1; k <= Math.max(cur, 0); k++) cw += STAGES[k].w;
+    $("cum").innerHTML = l
+      ? '<div>지금까지 투입할 금액<small>현재 단계까지 누적 · 총 ' + fmtWon(fund) + '</small></div><div style="text-align:right"><b>' +
+        fmtWon(fund * cw) + '</b><small>' + Math.round(cw * 100) + "% · 남은 자금 " + fmtWon(fund * (1 - cw)) + "</small></div>"
+      : "";
   }
 
   function renderHero(a, all) {
@@ -328,7 +374,7 @@ tr:last-child td { border-bottom: 0; }
     var peak = a.last.peak, mn = Infinity;
     rows.forEach(function (r) { if (r.c < mn) mn = r.c; });
     var levels = [];
-    [[0.10, "−10% 매수 시작"], [0.20, "−20% 본격 매수"], [0.30, "−30% 풀매수"]].forEach(function (x) {
+    [[0.10, "−10% 1차 매수"], [0.20, "−20% 2차 매수"], [0.30, "−30% 3차 매수"]].forEach(function (x) {
       if (mn <= peak * (1 - x[0] + 0.03)) levels.push({ v: peak * (1 - x[0]), label: x[1] });
     });
     var lowest = levels.length ? Math.min(mn, levels[levels.length - 1].v) : mn;
@@ -455,6 +501,11 @@ tr:last-child td { border-bottom: 0; }
     showMsg("<p>" + (detail || text) + "</p>");
   }
 
+  try { var saved = localStorage.getItem(FUND_KEY); if (saved) $("fundIn").value = saved; } catch (e) { /* 저장소 없음 */ }
+  $("fundIn").addEventListener("input", function () {
+    try { localStorage.setItem(FUND_KEY, $("fundIn").value); } catch (e) { /* 저장소 없음 */ }
+    renderPlan(lastL);
+  });
   renderPlan(null);
   fetch("data.json", { cache: "no-store" })
     .then(function (r) {
