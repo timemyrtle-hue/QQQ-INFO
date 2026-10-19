@@ -78,4 +78,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit as e:
+        # 실패 이유를 GitHub Actions 화면에 오류 표시로 남깁니다.
+        if e.code not in (None, 0):
+            print("::error::" + str(e.code))
+        raise
