@@ -489,8 +489,12 @@ tr:last-child td { border-bottom: 0; }
 
     var msgs = [];
     if (!a.hasWeekly) msgs.push("역대 최고점을 찾는 과거 데이터가 없어, 저장된 기간 안에서의 최고점을 기준으로 표시합니다.");
-    if (ok && Date.now() - when.getTime() > 4 * DAY) {
-      msgs.push("마지막 갱신이 " + Math.floor((Date.now() - when.getTime()) / DAY) + "일 전입니다. 그 이후 시세는 반영되지 않았을 수 있습니다.");
+    /* UTC 23시(한국 08시)가 지나면 그날 미국 종가가 들어와 있어야 함 */
+    var n = new Date(Date.now() - 23 * 3600000);
+    var exp = Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate());
+    while (new Date(exp).getUTCDay() === 0 || new Date(exp).getUTCDay() === 6) exp -= DAY;
+    if (a.last.t < exp) {
+      msgs.push(fmtDateW(exp) + " 종가가 아직 반영되지 않았습니다. 자동 갱신이 늦어지거나 실패했을 수 있으니, 계속되면 Actions에서 수동 실행해 주세요. (미국 휴장일이었다면 무시하세요)");
     }
     if (msgs.length) showMsg(msgs.map(function (m) { return "<p>" + m + "</p>"; }).join(""));
     else hideMsg();
