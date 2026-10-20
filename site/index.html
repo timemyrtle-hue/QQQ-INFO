@@ -83,19 +83,23 @@ body {
 .up { color: var(--up); }
 .down { color: var(--down); }
 
-.scale { position: relative; padding-bottom: 34px; }
+.scale { position: relative; padding-bottom: 50px; }
 .track {
   height: 8px; border-radius: 4px;
   background: linear-gradient(to right,
-    color-mix(in srgb, var(--down) 6%, var(--line)) 0 33.33%,
-    color-mix(in srgb, var(--down) 26%, var(--line)) 33.33% 66.67%,
-    color-mix(in srgb, var(--down) 55%, var(--line)) 66.67% 100%);
+    color-mix(in srgb, var(--down) 6%, var(--line)) 0 25%,
+    color-mix(in srgb, var(--down) 22%, var(--line)) 25% 50%,
+    color-mix(in srgb, var(--down) 40%, var(--line)) 50% 75%,
+    color-mix(in srgb, var(--down) 60%, var(--line)) 75% 100%);
 }
 .pin { position: absolute; top: -5px; width: 3px; height: 18px; margin-left: -1.5px; background: var(--ink); border-radius: 2px; left: 0; }
 .tick { position: absolute; top: 14px; font-size: 11.5px; color: var(--mute); transform: translateX(-50%); white-space: nowrap; font-family: var(--font-num); }
 .tick.first { transform: none; }
 .tick.last { transform: translateX(-100%); }
-.tick span { font-family: var(--font-body); }
+.tick { text-align: center; line-height: 1.35; }
+.tick.first { text-align: left; }
+.tick.last { text-align: right; }
+.tick span { display: block; font-family: var(--font-body); }
 
 .plan-head, .prow { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1.05fr); gap: 8px; align-items: center; }
 .plan-head { font-size: 12px; color: var(--mute); padding: 0 10px 6px; margin: 0 -10px; border-bottom: 1px solid var(--line); }
@@ -183,9 +187,10 @@ tr:last-child td { border-bottom: 0; }
       <div class="track"></div>
       <div class="pin" id="pin" style="left:0%"></div>
       <span class="tick first" style="left:0%">0%</span>
-      <span class="tick" style="left:33.33%">−10% <span>1차</span></span>
-      <span class="tick" style="left:66.67%">−20% <span>2차</span></span>
-      <span class="tick last" style="left:100%">−30% <span>3차</span></span>
+      <span class="tick" style="left:25%">−10% <span>1차</span></span>
+      <span class="tick" style="left:50%">−20% <span>2차</span></span>
+      <span class="tick" style="left:75%">−30% <span>3차</span></span>
+      <span class="tick last" style="left:100%">−40% <span>4차</span></span>
     </div>
     <dl class="stats">
       <div class="stat"><dt>현재 종가</dt><dd id="s-close">—<small id="s-close-d">&nbsp;</small></dd></div>
@@ -227,7 +232,7 @@ tr:last-child td { border-bottom: 0; }
     </div>
   </section>
 
-  <p class="note" id="note">고점 대비는 QQQ 상장(1999년) 이후 역대 최고 종가를 기준으로 계산합니다. 최근 약 5개월은 일별 종가로, 그 이전은 주간 종가로 찾기 때문에 오래된 고점은 며칠 차이가 날 수 있고 이때는 날짜 앞에 ≈를 붙입니다. QQQ는 나스닥-100 지수를 추종하는 ETF라서 나스닥 종합지수와 하락률이 조금 다를 수 있습니다. 시세는 미국 정규장 마감 후 저장된 값이며, 마지막 갱신 시각은 맨 위에 표시됩니다. 매수 단계와 금액은 사용자가 정한 분할 매수 계획(−10%에 10%, −20%에 30%, −30%에 40%, 예비 현금 20%)을 입력한 총액에 맞춰 계산해 보여주는 것이며 투자 권유가 아닙니다. 입력한 금액은 이 기기에만 저장됩니다.</p>
+  <p class="note" id="note">고점 대비는 QQQ 상장(1999년) 이후 역대 최고 종가를 기준으로 계산합니다. 최근 약 5개월은 일별 종가로, 그 이전은 주간 종가로 찾기 때문에 오래된 고점은 며칠 차이가 날 수 있고 이때는 날짜 앞에 ≈를 붙입니다. QQQ는 나스닥-100 지수를 추종하는 ETF라서 나스닥 종합지수와 하락률이 조금 다를 수 있습니다. 시세는 미국 정규장 마감 후 저장된 값이며, 마지막 갱신 시각은 맨 위에 표시됩니다. 매수 단계와 금액은 사용자가 정한 분할 매수 계획(−10%에 20%, −20%에 40%, −30%에 30%, −40%에 10%)을 입력한 총액에 맞춰 계산해 보여주는 것이며 투자 권유가 아닙니다. 입력한 금액은 이 기기에만 저장됩니다.</p>
 </div>
 
 <script>
@@ -274,11 +279,11 @@ tr:last-child td { border-bottom: 0; }
   /* ---------- render ---------- */
   var STAGES = [
     { name: "대기", rule: "−10% 미만 하락", th: 0, w: 0 },
-    { name: "1차 매수", rule: "−10% · 조정장 진입", th: 0.10, w: 0.10 },
-    { name: "2차 매수", rule: "−20% · 약세장 진입", th: 0.20, w: 0.30 },
-    { name: "3차 매수", rule: "−30% · 적극적 매수", th: 0.30, w: 0.40 }
+    { name: "1차 매수", rule: "−10% · 조정장 진입", th: 0.10, w: 0.20 },
+    { name: "2차 매수", rule: "−20% · 약세장 진입", th: 0.20, w: 0.40 },
+    { name: "3차 매수", rule: "−30% · 적극적 매수", th: 0.30, w: 0.30 },
+    { name: "4차 매수", rule: "−40% · 추가 하락", th: 0.40, w: 0.10 }
   ];
-  var RESERVE_W = 0.20; /* −40% 이상 추가 하락·예외 상황 대비 예비 현금 */
   var FUND_KEY = "nasdaq-check-fund";
   var lastL = null;
   function getFund() {
@@ -295,6 +300,7 @@ tr:last-child td { border-bottom: 0; }
     return r.toLocaleString("ko-KR") + "만 원";
   }
   function stageOf(dd) {
+    if (dd <= -0.40) return 4;
     if (dd <= -0.30) return 3;
     if (dd <= -0.20) return 2;
     if (dd <= -0.10) return 1;
@@ -302,7 +308,7 @@ tr:last-child td { border-bottom: 0; }
   }
   function verdictFor(l) {
     var i = stageOf(l.dd), next = STAGES[i + 1];
-    if (!next) return "3차 매수 단계입니다 (−30% 이하)";
+    if (!next) return "4차 매수 단계입니다 (−40% 이하)";
     var need = l.peak * (1 - next.th) / l.c - 1;
     return STAGES[i].name + (i === 0 ? "" : " 단계") + " · " + next.name + "(−" + Math.round(next.th * 100) + "%)까지 " + fmtPct(need, false) + " 더";
   }
@@ -328,10 +334,6 @@ tr:last-child td { border-bottom: 0; }
       return '<div class="prow' + (i === cur ? " is-cur" : "") + '"><div><b>' + s.name + "</b><small>" + s.rule +
         "</small>" + amt + '</div><div class="px">' + px + '</div><div class="st">' + st + "</div></div>";
     }).join("");
-    var resPx = l ? fmtPrice(l.peak * 0.60) + "<small>이하</small>" : "—";
-    html += '<div class="prow res"><div><b>예비 현금</b><small>−40% 이상 추가 하락·예외 상황</small><span class="amt">' +
-      fmtWon(fund * RESERVE_W) + "<i>" + Math.round(RESERVE_W * 100) + '%</i></span></div><div class="px">' + resPx +
-      '</div><div class="st"><span class="muted">남겨둠</span></div></div>';
     $("plan").innerHTML = html;
     var cw = 0;
     for (var k = 1; k <= Math.max(cur, 0); k++) cw += STAGES[k].w;
@@ -348,7 +350,7 @@ tr:last-child td { border-bottom: 0; }
     dd.textContent = fmtPct(l.dd, false);
     dd.className = "dd " + (l.dd < -0.00005 ? "is-down" : "is-flat");
     $("verdict").textContent = verdictFor(l);
-    $("pin").style.left = Math.min(Math.abs(l.dd), 0.30) / 0.30 * 100 + "%";
+    $("pin").style.left = Math.min(Math.abs(l.dd), 0.40) / 0.40 * 100 + "%";
 
     $("s-close").innerHTML = fmtPrice(l.c) + '<small>' + fmtDateW(l.t) + '</small>';
     $("s-peak").innerHTML = fmtPrice(l.peak) + '<small>' + (l.peakApprox ? "≈ " + fmtDate(l.peakT) + " 주" : fmtDateW(l.peakT)) + '</small>';
@@ -374,7 +376,7 @@ tr:last-child td { border-bottom: 0; }
     var peak = a.last.peak, mn = Infinity;
     rows.forEach(function (r) { if (r.c < mn) mn = r.c; });
     var levels = [];
-    [[0.10, "−10% 1차 매수"], [0.20, "−20% 2차 매수"], [0.30, "−30% 3차 매수"]].forEach(function (x) {
+    [[0.10, "−10% 1차 매수"], [0.20, "−20% 2차 매수"], [0.30, "−30% 3차 매수"], [0.40, "−40% 4차 매수"]].forEach(function (x) {
       if (mn <= peak * (1 - x[0] + 0.03)) levels.push({ v: peak * (1 - x[0]), label: x[1] });
     });
     var lowest = levels.length ? Math.min(mn, levels[levels.length - 1].v) : mn;
